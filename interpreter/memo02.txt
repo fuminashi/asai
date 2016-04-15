@@ -1,0 +1,263 @@
+>>>
+let rec fac n = if n = 0 then 1 else n * fac (n - 1)
+in fac 3
+<<<
+
+末尾呼び出しでない例。fac(n-1)を呼び出した後、nをかけなくてはいけない。
+スタックに計算が残っている状態になる
+exit を考えたい; 呼び出して来た履歴とかをぶっ飛ばして終了させたい
+末尾呼び出しは、仕事が残ってないので即終了させられる
+末尾呼び出しだけを使って書きたい -> 継続渡し形式
+
+
+アキュムレータはひとつの解決策
+どこまで計算できたかを持ち歩く
+
+>>>
+let rec fac n acc = if n = 0 then acc else fac (n - 1) (n * acc)
+in fac 3 1
+<<<
+
+末尾呼び出し再帰になるので、jmpにコンパイラされる
+実行時間に差が出る
+スタックを使わないので、メモリの使用量がコンスタントで済む
+// Cを使う人とかには、メモリを食うのでOCamlは使えないとか言われる。笑
+
+
+ここで、継続を使ってみる
+
+>>>
+(* k: fac n の計算が終わったら、その後にする仕事(関数) *)
+let rec fac n k = if n = 0 then k 1 (* fac(0)は1だと分かっているので、kに1を渡す *)
+    else fac (n - 1) (fun x -> n * x) (* fac(n-1)の仕事をしてきたら、nを掛けて渡す *)
+in fac 3 (fun x -> x) (* 結果がきたら何もすることはないので、恒常関数を渡す *)
+<<<
+
+これは末尾呼び出しになっている。
+fac (n-1) (fun ..) の仕事をしたら、もうすることはないので。
+
+これを実行するとどうなるか？
+
+fac 3 id
+-> fac 2 (fun x -> 3 * x)
+-> fac 1 (fun x -> 2 * x)
+-> fac 0 (fun x -> 1 * x)
+-> (fun x -> 1 * x) 1
+-> 1
+
+あれあれ。
+fac の else で、 k となる部分に今までの計算を伝えてあげないといけない。
+
+>>>
+(* k: fac n の計算が終わったら、その後にする仕事(関数) *)
+let rec fac n k = if n = 0 then k 1 (* fac(0)は1だと分かっているので、kに1を渡す *)
+    else fac (n-1) (fun x -> k(n*x)) (* fac(n-1)の仕事をしてきたら、nを掛けて渡す *)
+in fac 3 (fun x -> x) (* 結果がきたら何もすることはないので、恒常関数を渡す *)
+<<<
+
+fac 3 id
+-> fac 2 (fun x -> id (3 * x))
+-> fac 1 (fun x' -> (fun x -> id (3 * x)) (2 * x'))
+-> fac 0 (fun x'' -> (fun x' -> (fun x ->  id (3 * x)) (2 * x')) 
+-> (fun x'' -> (fun x' -> (fun x ->  id (3 * x)) (2 * x')) 1
+-> 6
+
+継続を渡してあげると、ネストする必要がない。
+結果が終わったら、継続に渡してくれ、とできるので。
+
+ところで、継続となる引数のところにものが連なっている。
+継続の部分にスタックみたいなものが入っていると考えてもいいかもしれない。
+なので、メモリの節約にはあまりなっていないかもしれない。
+ただ、スタックの部分が引数となって明示的に見えているので、それを捨てることが出来る。
+例えば、「なんか変なことが起こって、エラーが起こった！」というとき、
+kを捨ててあげると、それ以降なにもする仕事はないので、エラーを返してあげれば結果が出る。
+それ(k)を使おうが使わまいが、好きにしていいよという自由を与える。
+try with で raise をすると、直近の try with まで飛んでいかなくちゃいけないんだけど、
+継続のなかに本来なら raise しなければしていたはずの仕事が残っているので、
+なにをするべきだったかという仕事をあとから見ることが出来る。
+
+
+例としてtimesを考えてみる
+
+>>>
+(* times: lst の要素の積を返す *)
+let rec times lst = match lst with
+    [] -> 1
+  | first :: rest -> first * times rest
+<<<
+
+問1. これをCPS形式にせよ(Continuation-Passing Style:継続渡し形式)
+     ちなみにCPSじゃないものを直接形式(direct style)といいます
+
+CPS は末尾呼び出しか、継続のかたちのどちらかになっている
+fun x の中でも、k に渡すようになっている
+厳密には CPS にはなっていないんだけど(k (n * x) のところとか)、
+tribial な部分(四則演算とか)はあまり重要視されない
+
+Ans.)
+>>>
+let rec times lst k = match lst with
+    [] -> k 1
+  | 0 :: rest -> k 0
+  | first :: rest -> times rest (fun x -> k (first * x))
+<<<
+
+解説)
+direct style のとき
+
+>>>
+times [3;2;4] = 3 * t [2;4]
+      	      = 3 * (2 * t [4])
+	      = 3 * (2 * (4 * t []))
+<<<
+
+0が含まれる時は？
+
+times [3;0;4] = 3 * t [0;4]
+      	      = 3 * (0 * t [4])
+	      = 3 * (0 * (4 * t []))
+
+0だと分かったときは、0を返すとするとどうなるか。
+
+times [3;0;4] = 3 * t [0;4]
+      	      = 3 * 0
+	      = 0
+
+一旦0を見つけたら奥底まで行かなくて済むようになる。
+しかし、その手前のかけ算をやらざるをえない。
+それもやめるには(i.e. 0がきたら即座に計算をやめてしまうには)どうすればいいか？
+
+どこかで exception Zero を宣言しておく
+
+>>>
+let rec times lst = match lst with
+    [] -> 1
+  | 0 :: rest -> raise Zero
+  | first :: rest -> first * times rest
+<<<
+
+このように例外をraiseをしてしまえば、
+今まであったスタックをぶっとばして、try withにキャッチされることが出来る。
+
+>>>
+try time []
+with Zero -> 0 ;;
+<<<
+
+このとき、リストが0を含むなら、不要なかけ算をする必要はなくなる。
+
+
+CPSを使えば、例外を使う必要はなくなる。
+
+>>>
+let rec times lst k = match lst with
+    [] -> k 1
+  | 0 :: rest -> 0 (* その後やる仕事であるところの k を捨ててしまえる！ *)
+  | first :: rest -> times rest (fun x -> k (first * x))
+<<<
+  
+継続を用いることで、その関数を呼び出さないという選択肢がある。
+ちなみに、最終行の fun を
+
+fun x -> print_endline "hello";
+         k (first * x)
+
+とすると、継続が行われただけ hello が出力される。
+
+>>>
+let rec times lst k = match lst with
+    [] -> k 1
+  | 0 :: rest -> 0
+  | first :: rest -> times rest (fun x -> print_endline ("hello " ^ string_of_int first);
+    	     	     	   	       	  k (first * x))
+<<<
+
+ちなみに、stringにしてみる。
+
+>>>
+times [3;2;4] (fun x -> string_of_int x);;
+Error: This expression has type string but an expression was expected of type int
+<<<
+
+0の行を取り除くと、動く。
+0のパターンマッチの部分で、型を固定しているから。
+times の型は次のようだったが、
+val times : int list -> (int -> int) -> int = <fun>
+0のパターンマッチを外すと、次のように型が変化する。
+val times : int list -> (int -> 'a) -> 'a = <fun>
+
+最終的に返るものの型を answer type という
+CPS の決まりに厳格に従っているなら、answer type は初期継続によって定まる。
+(どういう初期継続を渡しても動く)
+だが、それから逸脱したような動き(e.g. raise Zero)をすると、
+answer type が固定されてしまって、conflict が起こることがある。
+初期継続は、継続の実行が終わったあと、
+自分を取り囲んでいるコンテクスト全体がどうなっていくか、に影響を及ぼす
+
+厳格にCPSに従っているような関数なら、直接形式と同じように動く
+
+
+serious と tribial はどう違うか？
+これは恣意的に定まるもの。
+普通の直接形式なら有り得ない、全部ぶっとばして0を返すとかいう
+パワフルなことをやっているのが、serious な関数。
+そんなことはしない、実行しておしまい、っていうのはtribialにしておく
+ - 継続捨ててどうのこうのというのはしない、必ず継続は実行するというもの。
+非局所的なふるまいをさせたいときは、seriousとみなすべき
+
+
+問2. フィボナッチ数を求める関数 fib をCPSにしてみよう。
+
+>>>
+let rec fib n = if n < 2 then n
+    	      	else fib (n - 1) + fib (n - 2)
+<<<
+
+Ans.)
+>>>
+let rec fib n k = 
+    if n < 2 then k n 
+    else fib (n-1) (fun x -> fib (n-2) (fun y -> k(x+y)))
+<<<
+
+または
+
+>>>
+let rec fib n k = 
+    if n < 2 then k n 
+    else fib (n-2) (fun x -> fib (n-1) (fun y -> k(x+y)))
+<<<
+
+解説)
+direct style では、ふたつ再帰呼び出しをした
+どっちが先に実行されるかは分からない
+これは言語体系による
+OCaml なら fib n-2, Racket なら fib n-1 が先に実行される
+CPS 形式で書くなら、どっちを先に実行するか決心しなくてはならない
+CPS 変換で、コントロールフローを規定することができる(どういう順番で実行するか)
+
+call by value: 値渡し
+call by value を call by name にすることもできる
+
+CPS 変換をすることで、その前は
+メタ言語がどうなっているかによって、プログラムの挙動が代わっていたけれども
+メタ言語によらず、そのプログラムがどう動くかを決めることができる
+
+exit をするようなとき、どっちを先に実行するかによって挙動が代わってくる
+
+e.g. raise Zero + raise Not_found
+
+どっちの例外があがるのかは言語体系によって決まるので、結果が代わる
+CPS変換してあげると、どちらかに一意に決まる
+
+book.pdfでは先生の話が書き起こされています
+
+ちなみに、型を見てみると a' は２つでてくる。
+k: int -> a'
+shiftとかresetとかを使うと、その型が変化する
+answer type mordification という
+answerは 両方とも同じになってるやつが pure
+pure は普通の direct style に対応している
+k を使わないとかいう特殊なことをすると、inpure になってくる
+
+END
