@@ -17,6 +17,28 @@ rule token = parse
     {RPAREN}
   | "+"
     {PLUS}
+  | "*"
+    {TIMES}
+  | "/"
+    {DIVIDE}
+  | "-"
+    {MINUS}
+  | ">"
+    {GREATER}
+  | "mod" | "MOD"
+    {MOD}
+  | "not" | "NOT"
+    {NOT}
+  | "\|\|" | "or" | "OR"
+    {OR}
+  | "&" | "and" |"AND"
+    {AND}
+  | "="
+    {EQUAL}
+  | "true" | "TRUE" | "True" | "T"
+    {BOOL(true)}
+  | "false" | "FALSE" | "False" | "F"
+    {BOOL(false)}
   | ";;"
     {EOI}
   | digit+

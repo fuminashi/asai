@@ -1,5 +1,8 @@
-戻る
-%token <int > NUMBER
+%{
+open Evalplus
+%}
+
+%token <int> NUMBER
 %token LPAREN
 %token RPAREN
 %token PLUS
@@ -7,7 +10,7 @@
 %token TIMES
 %token DIVIDE
 %token MOD
-%token BOOL
+%token <bool> BOOL
 %token AND
 %token OR
 %token NOT
@@ -16,23 +19,16 @@
 %token EOI
 
 /* 優先順位と連結性をここに書く */
-%left PLUS
-%left MINUS
-%left TIMES
-%left DIVIDE
-%left MOD
-%token BOOL
-%token AND
-%token OR
+/* 下に行くほど優先される */
+%token EQUAL GREATER
+%token BOOL AND OR
 %token NOT
-%token EQUAL
-%token GREATER
-
-
+%left PLUS MINUS
+%left TIMES DIVIDE MOD
 
 /* 開始記号の定義 */
-%type < Evalplus.t > expr
-%type < Evalplus.t > start
+%type < Evalplus.expr_t > expr
+%type < Evalplus.expr_t > start
 %start start
 
 %%
@@ -43,8 +39,28 @@ start:
 
 expr:
 | NUMBER
-    {Evalplus.Num($1)}
+    {Evalplus.Number($1)}
+| BOOL
+    {Evalplus.Bool($1)}
+| NOT expr
+    {Evalplus.Not($2)}
 | expr PLUS expr
     {Evalplus.Plus($1, $3)}
+| expr MINUS expr
+    {Evalplus.Minus($1, $3)}
+| expr TIMES expr
+    {Evalplus.Times($1, $3)}
+| expr DIVIDE expr
+    {Evalplus.Divide($1, $3)}
+| expr MOD expr
+    {Evalplus.Mod($1, $3)}
+| expr AND expr
+    {Evalplus.And($1, $3)}
+| expr OR expr
+    {Evalplus.Or($1, $3)}
+| expr EQUAL expr
+    {Evalplus.Equal($1, $3)}
+| expr GREATER expr
+    {Evalplus.Greater($1, $3)}
 | LPAREN expr RPAREN
     { $2 }

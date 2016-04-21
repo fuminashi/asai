@@ -16,6 +16,13 @@ type expr_t = Number of int
 	      | Equal of expr_t * expr_t
 	      | Greater of expr_t * expr_t
 
+(* value_t 型の式を受け取って string に直す関数 *)
+(* v_to_string: value_t -> string *)
+let rec v_to_string expr =
+  match expr with
+    VNumber (n) -> string_of_int n
+  | VBool (b) -> string_of_bool b
+		  
 (* expr_t 型の式を受け取ったら、value_t 型の値を返す関数 *)
 (* val eval : expr_t -> value_t *)
 let rec eval expr =
@@ -65,19 +72,23 @@ let rec eval expr =
   | Equal (op1, op2) ->
      (match (eval op1, eval op2) with
        (VBool(b1), VBool(b2)) -> VBool (b1 = b2)
+     | (VNumber(n1), VNumber(n2)) -> VBool (n1 = n2)
      | _ -> failwith "type error"
      )
   | Greater (op1, op2) ->
-     ( match (eval op1, eval op2) with
-            (VBool(op1), VBool(op2)) -> VBool (op1 > op2)
-          | (VNumber(op1), VNumber(op2)) -> VBool (op1 > op2)
-          | _ -> failwith "type error"
+     (match (eval op1, eval op2) with
+       (VBool(op1), VBool(op2)) -> VBool (op1 > op2)
+     | (VNumber(op1), VNumber(op2)) -> VBool (op1 > op2)
+     | _ -> failwith "type error"
      )
+
+(* 入口 *)
+let f expr = eval expr
 
 (* テスト *)
 (* test1: T or (not F and T) *)
 (* test2: 3 + 4 * (5 - 2) *)
 (* test3: T = 1 > 5 *)
-let test1 = VBool true = eval (Or (Bool true, And (Not (Bool false), Bool true)))
-let test2 = VNumber 15 = eval (Plus (Number 3, Times (Number 4, Minus (Number 5, Number 2))))
-let test3 = VBool false = eval (Equal (Bool true, (Greater (Number 1, Number 5))))
+(* let test1 = VBool true = eval (Or (Bool true, And (Not (Bool false), Bool true))) *)
+(* let test2 = VNumber 15 = eval (Plus (Number 3, Times (Number 4, Minus (Number 5, Number 2)))) *)
+(* let test3 = VBool false = eval (Equal (Bool true, (Greater (Number 1, Number 5)))) *)
