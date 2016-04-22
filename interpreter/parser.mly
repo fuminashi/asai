@@ -17,6 +17,10 @@ open Evalplus
 %token EQUAL
 %token GREATER
 %token EOI
+%token LET
+%token REC
+%token IN
+%token <string> VARIABLE
 
 /* 優先順位と連結性をここに書く */
 /* 下に行くほど優先される */
@@ -42,6 +46,8 @@ expr:
     {Evalplus.Number($1)}
 | BOOL
     {Evalplus.Bool($1)}
+| VARIABLE
+    {Evalplus.Variable($1)}
 | NOT expr
     {Evalplus.Not($2)}
 | expr PLUS expr
@@ -64,3 +70,5 @@ expr:
     {Evalplus.Greater($1, $3)}
 | LPAREN expr RPAREN
     { $2 }
+| LET VARIABLE EQUAL expr IN expr
+    {Evalplus.Let($2, $4, $6)}

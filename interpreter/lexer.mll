@@ -7,6 +7,7 @@ let space = [' ' '\t' '\n' '\r']
 let digit = ['0'-'9']
 let lower = ['a'-'z']
 let upper = ['A'-'Z']
+let alpha = lower | upper
 
 rule token = parse
   | space+
@@ -39,9 +40,17 @@ rule token = parse
     {BOOL(true)}
   | "false" | "FALSE" | "False" | "F"
     {BOOL(false)}
+  | "let" | "LET"
+    {LET}
+  | "rec" | "REC"
+    {REC}
+  | "in" | "IN"
+    {IN}
   | ";;"
     {EOI}
   | digit+
     {NUMBER(int_of_string (Lexing.lexeme lexbuf))}
+  | alpha+ (alpha | digit)*
+    {VARIABLE(Lexing.lexeme lexbuf)}
   | _
     {failwith ("unknown token: " ^ Lexing.lexeme lexbuf)}
