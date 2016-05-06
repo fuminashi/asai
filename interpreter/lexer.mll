@@ -50,6 +50,10 @@ rule token = parse
     {EOI}
   | digit+
     {NUMBER(int_of_string (Lexing.lexeme lexbuf))}
+  | "fun" | "FUN" | "Fun"
+    {FUN}
+  | "->"
+    {ARROW}
   | alpha+ (alpha | digit)*
     {VARIABLE(Lexing.lexeme lexbuf)}
   | _

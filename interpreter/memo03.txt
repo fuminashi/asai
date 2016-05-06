@@ -1,0 +1,4 @@
+きょうは変数を導入します
+parserとlexerを拡張
+evalplusも変数に対応させる
+

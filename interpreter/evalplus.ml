@@ -2,8 +2,6 @@
 (* http://pllab.is.ocha.ac.jp/zemi_1.html *)
 open Env
 
-type value_t = VNumber of int | VBool of bool
- 
 type expr_t = Number of int
               | Plus of expr_t * expr_t
               | Minus of expr_t * expr_t
@@ -18,6 +16,13 @@ type expr_t = Number of int
 	      | Greater of expr_t * expr_t
 	      | Variable of string
 	      | Let of string * expr_t * expr_t
+	      | Fun of string * expr_t
+	      | App of expr_t * expr_t
+
+type value_t = VNumber of int
+	       | VBool of bool
+	       | VFun of string * expr_t * (string, value_t) Env.t
+               (* VFun: 引数名, 本体の式, 環境 *)
 
 (* value_t 型の式を受け取って string に直す関数 *)
 (* v_to_string: value_t -> string *)
@@ -25,7 +30,11 @@ let rec v_to_string expr =
   match expr with
     VNumber (n) -> string_of_int n
   | VBool (b) -> string_of_bool b
-     
+  | VFun (v, expr, env) -> "Fun"
+(*     v ^ " " ^ (v_to_string expr) ^ "," ^ 
+       (List.fold_left 
+       (fun l (s,e) -> l ^ "; " ^ s ^ " " ^ v_to_string e) "" env) *)
+
 (* expr_t 型の式を受け取ったら、value_t 型の値を返す関数 *)
 (* val eval : expr_t -> Env.t list -> value_t *)
 let rec eval expr env =
@@ -90,7 +99,16 @@ let rec eval expr env =
   | Let (v, e1, e2) ->
      let env' = extend env v (eval e1 env) in
      eval e2 env'
-       
+  | Fun (name, e) -> VFun(name, e, empty)
+  | App (e1, e2) ->
+     match eval e1 env with
+       VFun(v, body, env') -> 
+	 let env' = extend env' v (eval e2 env) in
+	 try 
+	   eval body env'
+	 with _ -> failwith ("Error: App")
+     | _ -> failwith ("Error: Unbound value Evalplus.App")
+
 (* 入口 *)
 let f expr = eval expr empty
 

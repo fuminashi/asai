@@ -1,0 +1,26 @@
+2016-05-06
+fun の導入は、関数値の導入
+関数を中で扱ってあげなくちゃならない
+
+(fun x -> x+1) 5
+-> x+1 (x->5)
+
+変数と、bodyが分かっていれば書けそうなものである
+VFun のところを見るとそれだけじゃダメだと書いてある
+クロージャは三つ目の引数に環境を持っていなくちゃダメ
+(env_t と書きたいけどここでは (string * value_t) list となっている)
+
+v_to_string の VFun を書くのは大変！
+OCaml はどうしているか？ -> 型しか書かない
+ふつうは「関数が来たよ」としか知らせない
+
+let x = 3 in
+let g = fun y -> x + y in
+let x = 5 in
+g 1
+
+dynamic scoping だと x = 5 を採用(答えは6)
+// emacs lisp は current buffering を dynamic に見るので
+// 変数名を変えるとうまく動かなかったりする。。
+// mobile なコードだと dynamic scoping が便利
+lexical scoping だと x = 3 を採用(答えは4)

@@ -1,4 +1,4 @@
-SOURCES = evalplus.ml parser.mly lexer.mll main.ml
+SOURCES = env.mli env.ml evalplus.ml parser.mly lexer.mll main.ml
 RESULT = interp
-OCAMLMAKEFILE = OCamlMakefile
+OCAMLMAKEFILE = /Users/wasabi/Documents/x_torima/Others/OCamlMakefile
 include $(OCAMLMAKEFILE)

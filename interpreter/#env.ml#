@@ -1,17 +1,17 @@
 (* type ('a, 'b) t = ('a * 'b) list *)
 type ('a, 'b) t = 'a -> 'b
 
-(* ç©ºã®ç’°å¢ƒ *)
+(* ’¶õ’¤Î’´Ä’¶­ *)
 (* let empty = [] *)
 let empty = fun x -> raise Not_found
 
-(* ä½¿ã„æ–¹ï¼šget env var *)
-(* ç’°å¢ƒ env ã®ä¸­ã§å¤‰æ•° var ã®å€¤ã‚’è¿”ã™ *)
-(* å¤‰æ•° var ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ã£ãŸã‚‰ä¾‹å¤– Not_found ã‚’èµ·ã“ã™ *)
+(* ’»È’¤¤’Êı’¡§get env var *)
+(* ’´Ä’¶­ env ’¤Î’Ãæ’¤Ç’ÊÑ’¿ô var ’¤Î’ÃÍ’¤ò’ÊÖ’¤¹ *)
+(* ’ÊÑ’¿ô var ’¤¬’¸«’¤Ä’¤«’¤é’¤Ê’¤«’¤Ã’¤¿’¤é’Îã’³° Not_found ’¤ò’µ¯’¤³’¤¹ *)
 let get env var = env var
   
-(* ä½¿ã„æ–¹ï¼šextend env var value *)
-(* ç’°å¢ƒ env ã«å¤‰æ•° var ã®å€¤ã‚’ value ã«ç™»éŒ²ã—ãŸæ–°ãŸãªç’°å¢ƒã‚’è¿”ã™ *)
+(* ’»È’¤¤’Êı’¡§extend env var value *)
+(* ’´Ä’¶­ env ’¤Ë’ÊÑ’¿ô var ’¤Î’ÃÍ’¤ò value ’¤Ë’ÅĞ’Ï¿’¤·’¤¿’¿·’¤¿’¤Ê’´Ä’¶­’¤ò’ÊÖ’¤¹ *)
 (* let extend env var value = *)
 (*   if List.mem_assoc var env then (var, value) :: (List.remove_assoc var env) *)
 (*   else (var, value) :: env *)

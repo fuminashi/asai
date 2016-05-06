@@ -17,6 +17,8 @@ open Evalplus
 %token EQUAL
 %token GREATER
 %token EOI
+%token FUN
+%token ARROW
 %token LET
 %token REC
 %token IN
@@ -72,3 +74,7 @@ expr:
     { $2 }
 | LET VARIABLE EQUAL expr IN expr
     {Evalplus.Let($2, $4, $6)}
+| FUN VARIABLE ARROW expr
+    {Evalplus.Fun($2, $4)}
+| expr expr
+    {Evalplus.App($1, $2)}
