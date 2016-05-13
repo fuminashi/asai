@@ -22,6 +22,7 @@ open Evalplus
 %token LET
 %token REC
 %token IN
+%token EXIT
 %token <string> VARIABLE
 
 /* 優先順位と連結性をここに書く */
@@ -78,3 +79,5 @@ expr:
     {Evalplus.Fun($2, $4)}
 | expr expr
     {Evalplus.App($1, $2)}
+| EXIT expr
+    { $2 }

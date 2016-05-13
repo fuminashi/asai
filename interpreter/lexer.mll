@@ -48,13 +48,15 @@ rule token = parse
     {IN}
   | ";;"
     {EOI}
-  | digit+
-    {NUMBER(int_of_string (Lexing.lexeme lexbuf))}
+  | "exit" | "Exit" | "EXIT" 
+    {EXIT}
   | "fun" | "FUN" | "Fun"
     {FUN}
   | "->"
     {ARROW}
   | alpha+ (alpha | digit)*
     {VARIABLE(Lexing.lexeme lexbuf)}
+  | digit+
+    {NUMBER(int_of_string (Lexing.lexeme lexbuf))}
   | _
     {failwith ("unknown token: " ^ Lexing.lexeme lexbuf)}

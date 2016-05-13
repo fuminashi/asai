@@ -1,0 +1,33 @@
+
+CPSのはなし
+例
+>>>
+let rec times lst cont = 
+    match lst with 
+      [] -> cont 1
+    | 0 :: rest -> 0
+    | first :: rest -> times rest (fun x -> cont (first*x))
+<<<
+
+エラーがおきちゃったとき、計算せずともやめられるようにしたい
+1) exception を使う方法: error を検知したら例外上げちゃう
+2) error であるか、まっとうな値を返すか
+   option type による例外処理、大変なんだけどできないことはない
+3) eval を CPS にする
+   eval 自体はずっと末尾呼び出しになる
+   仕事は全部 cont に積まれている状態
+   exit になるとき、計算は捨てられる
+   例外処理を書かなくてすむ
+   実装されてる言語 exp ではなく、cont を CPS にする
+   すると、exp が jmp しててもへいき
+   interpreter も大きくなってしまったかもしれないけど、最初は四則演算くらいでやるのがラク
+
+let rec eval exp env cont = ...
+
+OR はとても特殊
+片側が true だと分かっていたら、もう片側に何が来ても true になるように大抵なっている
+
+let a = 1 in
+let f = (fun x -> x + a) in
+let a = 2 in 
+f 3;;

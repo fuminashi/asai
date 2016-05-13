@@ -18,12 +18,15 @@ type expr_t = Number of int
 	      | Let of string * expr_t * expr_t
 	      | Fun of string * expr_t
 	      | App of expr_t * expr_t
+	      | Exit of expr_t
 
 type value_t = VNumber of int
 	       | VBool of bool
 	       | VFun of string * expr_t * (string, value_t) Env.t
                (* VFun: 引数名, 本体の式, 環境 *)
 
+let id = fun x -> x
+		   
 (* value_t 型の式を受け取って string に直す関数 *)
 (* v_to_string: value_t -> string *)
 let rec v_to_string expr =
@@ -36,81 +39,105 @@ let rec v_to_string expr =
        (fun l (s,e) -> l ^ "; " ^ s ^ " " ^ v_to_string e) "" env) *)
 
 (* expr_t 型の式を受け取ったら、value_t 型の値を返す関数 *)
-(* val eval : expr_t -> Env.t list -> value_t *)
-let rec eval expr env =
+(* val eval : expr_t -> Env.t list -> () -> value_t *)
+let rec eval expr env cont =
   match expr with 
-    Number (n) -> VNumber(n)
+    Number(n) -> cont (VNumber(n))
   | Plus (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VNumber(n1), VNumber(n2)) -> VNumber (n1 + n2)
-     | _ -> failwith "type error"
-     )
+     let cont1 =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VNumber(n1), VNumber(n2)) -> cont (VNumber (n1 + n2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont1
   | Minus (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VNumber(n1), VNumber(n2)) -> VNumber (n1 - n2)
-     | _ -> failwith "type error"
-     )
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VNumber(n1), VNumber(n2)) -> cont (VNumber (n1 - n2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
   | Times (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VNumber(n1), VNumber(n2)) -> VNumber (n1 * n2)
-     | _ -> failwith "type error"
-     )
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VNumber(n1), VNumber(n2)) -> cont (VNumber (n1 * n2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
   | Divide (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VNumber(n1), VNumber(n2)) -> VNumber (n1 / n2)
-     | _ -> failwith "type error"
-     )
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VNumber(n1), VNumber(n2)) -> cont (VNumber (n1 / n2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
   | Mod (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VNumber(n1), VNumber(n2)) -> VNumber (n1 mod n2)
-     | _ -> failwith "type error"
-     )
-  | Bool (b) -> VBool (b)
-  | And (op1, op2) -> 
-     (match (eval op1 env, eval op2 env) with
-       (VBool(b1), VBool(b2)) -> VBool (b1 && b2)
-     | _ -> failwith "type error"
-     )
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VNumber(n1), VNumber(n2)) -> cont (VNumber (n1 mod n2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
+  | Bool (b) -> cont (VBool(b))
+  | And (op1, op2) ->
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VBool(b1), VBool(b2)) -> cont (VBool (b1 && b2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
   | Or (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VBool(b1), VBool(b2)) -> VBool (b1 || b2)
-     | _ -> failwith "type error"
-     )
-  | Not (op) ->  
-   (match eval op env with
-       VBool(b) -> VBool (not b)
-     | _ -> failwith "type error"
-     )
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VBool(b1), VBool(b2)) -> cont (VBool (b1 || b2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
+  | Not (op) ->
+     let cont =
+       fun x -> match x with
+	 VBool(b) -> cont (VBool (not b))
+       | _ -> failwith "type error" in
+     eval op env cont
   | Equal (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VBool(b1), VBool(b2)) -> VBool (b1 = b2)
-     | (VNumber(n1), VNumber(n2)) -> VBool (n1 = n2)
-     | _ -> failwith "type error"
-     )
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VBool(b1), VBool(b2)) -> cont (VBool (b1 = b2))
+	 | (VNumber(b1), VNumber(b2)) -> cont (VBool (b1 = b2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
   | Greater (op1, op2) ->
-     (match (eval op1 env, eval op2 env) with
-       (VBool(op1), VBool(op2)) -> VBool (op1 > op2)
-     | (VNumber(op1), VNumber(op2)) -> VBool (op1 > op2)
-     | _ -> failwith "type error"
-     )
+     let cont =
+       fun x -> eval op2 env
+	 (fun y -> match (x,y) with
+	   (VBool(b1), VBool(b2)) -> cont (VBool (b1 > b2))
+	 | (VNumber(b1), VNumber(b2)) -> cont (VBool (b1 > b2))
+	 | _ -> failwith "type error") in
+     eval op1 env cont
   | Variable (v) ->
-     (try get env v
+     (try cont (get env v)
       with _ -> failwith ("Error: Unbound value " ^ v))
   | Let (v, e1, e2) ->
-     let env' = extend env v (eval e1 env) in
-     eval e2 env'
-  | Fun (name, e) -> VFun(name, e, empty)
+     eval e1 env (fun x -> eval e2 (extend env v x) cont)
+  (* let env' = extend env v (eval e1 env cont) in *)
+  (*      eval e2 env' cont *)
+  | Fun (name, e) -> cont (VFun(name, e, env)) (* 3rd: fv *)
   | App (e1, e2) ->
-     match eval e1 env with
-       VFun(v, body, env') -> 
-	 let env' = extend env' v (eval e2 env) in
-	 try 
-	   eval body env'
-	 with _ -> failwith ("Error: App")
-     | _ -> failwith ("Error: Unbound value Evalplus.App")
-
+     eval e1 env (fun x -> eval e2 env 
+       (fun y ->
+	 match x with
+	   VFun(v, body, env') ->
+	     let env'' = extend env' v y in
+	     (* extend env' だと static scoping, extend env だと dynamic scoping*)
+	     eval body env'' cont
+	 | _ -> failwith ("Error: App")
+       ))
+  | Exit(e) -> eval e env id
+  | _ -> failwith ("Error: Unbound value Evalplus.App")
+	
 (* 入口 *)
-let f expr = eval expr empty
+let f expr = eval expr empty id
 
 (* テスト *)
 (* test1: T or (not F and T) *)
