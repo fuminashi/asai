@@ -34,11 +34,13 @@ open Evalplus
 
 /* 優先順位と連結性をここに書く */
 /* 下に行くほど優先される */
-%token EQUAL GREATER
-%token BOOL AND OR
-%token NOT
+%nonassoc ELSE IN ARROW
+%left EQUAL NOTEQUAL GREATER LESS GREATEREQUAL LESSEQUAL
+%left AND OR
+%left NOT
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
+
 
 /* 開始記号の定義 */
 %type < Evalplus.expr_t > expr
@@ -51,13 +53,19 @@ start:
 | expr EOI
    { $1 }
 
-expr:
+simple_expr:
 | NUMBER
     {Evalplus.Number($1)}
 | BOOL
     {Evalplus.Bool($1)}
 | VARIABLE
     {Evalplus.Variable($1)}
+| LPAREN expr RPAREN
+    { $2 }
+| EXIT simple_expr
+    { $2 }
+
+expr:
 | NOT expr
     {Evalplus.Not($2)}
 | expr PLUS expr
@@ -88,15 +96,19 @@ expr:
     {Evalplus.Greater($1, $3)}
 | IF expr THEN expr ELSE expr
     {Evalplus.If($2, $4, $6)}
-| LPAREN expr RPAREN
-    { $2 }
 | LET VARIABLE EQUAL expr IN expr
     {Evalplus.Let($2, $4, $6)}
 | LET REC VARIABLE VARIABLE EQUAL expr IN expr
     {Evalplus.Letrec($3, $4, $6, $8)}
 | FUN VARIABLE ARROW expr
     {Evalplus.Fun($2, $4)}
-| expr expr
+| simple_expr
+    { $1 }
+| app
+    { $1 }
+
+app:
+| simple_expr simple_expr
     {Evalplus.App($1, $2)}
-| EXIT expr
-    { $2 }
+| app simple_expr
+    {Evalplus.App($1, $2)}
