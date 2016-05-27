@@ -26,9 +26,17 @@ rule token = parse
     {MINUS}
   | ">"
     {GREATER}
+  | ">="
+    {GREATEREQUAL}
+  | "<"
+    {LESS}
+  | "<="
+    {LESSEQUAL}
+  | "<>" | "!="
+    {NOTEQUAL}
   | "mod" | "MOD"
     {MOD}
-  | "not" | "NOT"
+  | "not" | "NOT" | "!"
     {NOT}
   | "\|\|" | "or" | "OR"
     {OR}
@@ -54,6 +62,14 @@ rule token = parse
     {FUN}
   | "->"
     {ARROW}
+  | "if" | "IF"
+    {IF}
+  | "then" | "THEN"
+    {THEN}
+  | "else" | "ELSE"
+    {ELSE}
+  | "control" | "CONTROL"
+    {CONTROL}
   | alpha+ (alpha | digit)*
     {VARIABLE(Lexing.lexeme lexbuf)}
   | digit+

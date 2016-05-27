@@ -31,6 +31,7 @@ open Evalplus
 %token THEN
 %token ELSE
 %token <string> VARIABLE
+%token CONTROL
 
 /* 優先順位と連結性をここに書く */
 /* 下に行くほど優先される */
@@ -61,8 +62,6 @@ simple_expr:
 | VARIABLE
     {Evalplus.Variable($1)}
 | LPAREN expr RPAREN
-    { $2 }
-| EXIT simple_expr
     { $2 }
 
 expr:
@@ -100,13 +99,17 @@ expr:
     {Evalplus.Let($2, $4, $6)}
 | LET REC VARIABLE VARIABLE EQUAL expr IN expr
     {Evalplus.Letrec($3, $4, $6, $8)}
+| CONTROL LPAREN FUN VARIABLE ARROW expr RPAREN
+    {Evalplus.Cont($4, $6)}
 | FUN VARIABLE ARROW expr
     {Evalplus.Fun($2, $4)}
 | simple_expr
     { $1 }
 | app
     { $1 }
-
+| EXIT simple_expr
+    {Evalplus.Exit($2)}
+    
 app:
 | simple_expr simple_expr
     {Evalplus.App($1, $2)}

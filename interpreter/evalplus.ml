@@ -19,11 +19,16 @@ type expr_t = Number of int
 	      | Fun of string * expr_t
 	      | App of expr_t * expr_t
 	      | Exit of expr_t
-
+	      | If of expr_t * expr_t * expr_t
+	      | Letrec of string * string * expr_t * expr_t
+	      | Cont of string * expr_t
+		  
 type value_t = VNumber of int
 	       | VBool of bool
-	       | VFun of string * expr_t * (string, value_t) Env.t
-               (* VFun: 引数名, 本体の式, 環境 *)
+	       | VFun of string * expr_t * (string, value_t) t
+		   (* VFun: 引数名, 本体の式, 環境 *)
+	       | VRecFun of string * string * expr_t * (string, value_t) t
+               | VCont of (value_t -> value_t)
 
 let id = fun x -> x
 		   
@@ -37,6 +42,8 @@ let rec v_to_string expr =
 (*     v ^ " " ^ (v_to_string expr) ^ "," ^ 
        (List.fold_left 
        (fun l (s,e) -> l ^ "; " ^ s ^ " " ^ v_to_string e) "" env) *)
+  | VRecFun (f, v, expr, env) -> "RecFun"
+  | VCont (c) -> "Cont"
 
 (* expr_t 型の式を受け取ったら、value_t 型の値を返す関数 *)
 (* val eval : expr_t -> Env.t list -> () -> value_t *)
@@ -115,6 +122,13 @@ let rec eval expr env cont =
 	 | (VNumber(b1), VNumber(b2)) -> cont (VBool (b1 > b2))
 	 | _ -> failwith "type error") in
      eval op1 env cont
+  | If (e1, e2, e3) ->
+     let cont' =
+       fun x -> match x with
+	 VBool(true) -> eval e2 env cont
+       | VBool(false) -> eval e3 env cont
+       | _ -> failwith "type error: if" in
+     eval e1 env cont'
   | Variable (v) ->
      (try cont (get env v)
       with _ -> failwith ("Error: Unbound value " ^ v))
@@ -122,7 +136,16 @@ let rec eval expr env cont =
      eval e1 env (fun x -> eval e2 (extend env v x) cont)
   (* let env' = extend env v (eval e1 env cont) in *)
   (*      eval e2 env' cont *)
+  | Letrec (f, v, e1, e2) ->
+     eval e2 (extend env f (VRecFun(f,v,e1,env))) cont
+(*      let x = VRecFun(f, v, e1, env) in *)
+(*      eval e2 (extend env f x) *)
+(*      eval e1 env (fun x -> eval e2 (extend env f x) cont) *)
   | Fun (name, e) -> cont (VFun(name, e, env)) (* 3rd: fv *)
+  | Cont (k, body) -> 
+     let env' = extend env k (VCont(cont)) in 
+     eval body env' id
+(*      VFun("f", App(Variable "f", Variable "k"), env') *)
   | App (e1, e2) ->
      eval e1 env (fun x -> eval e2 env 
        (fun y ->
@@ -131,10 +154,14 @@ let rec eval expr env cont =
 	     let env'' = extend env' v y in
 	     (* extend env' だと static scoping, extend env だと dynamic scoping*)
 	     eval body env'' cont
+	 | VRecFun(f, v, body, env') ->
+	    let env'' = extend (extend env' v y) f x in
+	    eval body env'' cont
+	 | VCont(cont') -> cont' y
 	 | _ -> failwith ("Error: App")
        ))
   | Exit(e) -> eval e env id
-  | _ -> failwith ("Error: Unbound value Evalplus.App")
+(*   | _ -> failwith ("Error: Unbound type Evalplus.t") *)
 	
 (* 入口 *)
 let f expr = eval expr empty id
