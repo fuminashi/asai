@@ -32,9 +32,19 @@ open Evalplus
 %token ELSE
 %token <string> VARIABLE
 %token CONTROL
+%token COLONS
+%token SCOLON
+%token LBRACKET
+%token RBRACKET
+%token MATCH
+%token WITH
+%token PIPE
+
 
 /* 優先順位と連結性をここに書く */
 /* 下に行くほど優先される */
+%right COLONS
+%nonassoc RBRACKET
 %nonassoc ELSE IN ARROW
 %left EQUAL NOTEQUAL GREATER LESS GREATEREQUAL LESSEQUAL
 %left AND OR
@@ -53,7 +63,7 @@ open Evalplus
 start:
 | expr EOI
    { $1 }
-
+   
 simple_expr:
 | NUMBER
     {Evalplus.Number($1)}
@@ -63,6 +73,8 @@ simple_expr:
     {Evalplus.Variable($1)}
 | LPAREN expr RPAREN
     { $2 }
+| LBRACKET expr RBRACKET
+    {Evalplus.Cons($2, Evalplus.Empty)}
 
 expr:
 | NOT expr
@@ -109,9 +121,29 @@ expr:
     { $1 }
 | EXIT simple_expr
     {Evalplus.Exit($2)}
-    
+| list
+    { $1 }
+| MATCH expr WITH LBRACKET RBRACKET ARROW expr PIPE VARIABLE COLONS VARIABLE ARROW expr
+    {Evalplus.Match($2, $7, $9, $11, $13)}
+
 app:
 | simple_expr simple_expr
     {Evalplus.App($1, $2)}
 | app simple_expr
     {Evalplus.App($1, $2)}
+
+list:
+| expr COLONS list
+    {Evalplus.Cons($1, $3)}
+| LBRACKET RBRACKET
+    {Evalplus.Empty}
+| LBRACKET expr SCOLON elements RBRACKET
+    {Evalplus.Cons($2, $4)}
+
+elements:
+| expr SCOLON
+    {Evalplus.Cons($1, Evalplus.Empty)}
+| expr SCOLON elements
+    {Evalplus.Cons($1, $3)}
+
+    

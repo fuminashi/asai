@@ -22,6 +22,9 @@ type expr_t = Number of int
 	      | If of expr_t * expr_t * expr_t
 	      | Letrec of string * string * expr_t * expr_t
 	      | Cont of string * expr_t
+	      | Match of expr_t * expr_t * string * string * expr_t 
+	      | Empty
+	      | Cons of expr_t * expr_t
 		  
 type value_t = VNumber of int
 	       | VBool of bool
@@ -29,6 +32,8 @@ type value_t = VNumber of int
 		   (* VFun: 引数名, 本体の式, 環境 *)
 	       | VRecFun of string * string * expr_t * (string, value_t) t
                | VCont of (value_t -> value_t)
+	       | VEmpty
+	       | VCons of value_t * value_t
 
 let id = fun x -> x
 		   
@@ -44,6 +49,8 @@ let rec v_to_string expr =
        (fun l (s,e) -> l ^ "; " ^ s ^ " " ^ v_to_string e) "" env) *)
   | VRecFun (f, v, expr, env) -> "RecFun"
   | VCont (c) -> "Cont"
+  | VEmpty -> "[]"
+  | VCons (head,tail) -> "["^(v_to_string head)^"; "^(v_to_string tail)^"]"
 
 (* expr_t 型の式を受け取ったら、value_t 型の値を返す関数 *)
 (* val eval : expr_t -> Env.t list -> () -> value_t *)
@@ -160,6 +167,17 @@ let rec eval expr env cont =
 	 | VCont(cont') -> cont' y
 	 | _ -> failwith ("Error: App")
        ))
+  | Match(e, e1, v, vs, e2) -> 
+     eval e env (fun x -> match x with
+       VEmpty -> eval e1 env cont
+     | VCons(head, tail) ->
+	let env' = extend (extend env v head) vs tail in
+	eval e2 env' cont
+     | _ -> failwith ("type error")
+     )
+  | Empty -> cont VEmpty
+  | Cons(e1,e2) ->
+     eval e1 env (fun x -> eval e2 env (fun y -> cont (VCons(x,y))))
   | Exit(e) -> eval e env id
 (*   | _ -> failwith ("Error: Unbound type Evalplus.t") *)
 	

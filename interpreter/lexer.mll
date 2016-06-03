@@ -70,6 +70,20 @@ rule token = parse
     {ELSE}
   | "control" | "CONTROL"
     {CONTROL}
+  | "::"
+    {COLONS}
+  | ";"
+    {SCOLON}
+  | "["
+    {LBRACKET}
+  | "]"
+    {RBRACKET}
+  | "match"
+    {MATCH}
+  | "with"
+    {WITH}
+  | "|"
+    {PIPE}
   | alpha+ (alpha | digit)*
     {VARIABLE(Lexing.lexeme lexbuf)}
   | digit+
