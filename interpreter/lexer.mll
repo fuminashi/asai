@@ -71,7 +71,7 @@ rule token = parse
   | "control" | "CONTROL"
     {CONTROL}
   | "::"
-    {COLONS}
+    {CONS}
   | ";"
     {SCOLON}
   | "["
@@ -84,6 +84,8 @@ rule token = parse
     {WITH}
   | "|"
     {PIPE}
+  | "prompt"
+    {PROMPT}
   | alpha+ (alpha | digit)*
     {VARIABLE(Lexing.lexeme lexbuf)}
   | digit+

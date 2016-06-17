@@ -25,6 +25,7 @@ type expr_t = Number of int
 	      | Match of expr_t * expr_t * string * string * expr_t 
 	      | Empty
 	      | Cons of expr_t * expr_t
+	      | Prompt of expr_t
 		  
 type value_t = VNumber of int
 	       | VBool of bool
@@ -152,7 +153,7 @@ let rec eval expr env cont =
   | Cont (k, body) -> 
      let env' = extend env k (VCont(cont)) in 
      eval body env' id
-(*      VFun("f", App(Variable "f", Variable "k"), env') *)
+(* VFun("f", App(Variable "f", Variable "k"), env') *)
   | App (e1, e2) ->
      eval e1 env (fun x -> eval e2 env 
        (fun y ->
@@ -179,10 +180,17 @@ let rec eval expr env cont =
   | Cons(e1,e2) ->
      eval e1 env (fun x -> eval e2 env (fun y -> cont (VCons(x,y))))
   | Exit(e) -> eval e env id
+  | Prompt(e) ->
+     cont (eval e env id)
 (*   | _ -> failwith ("Error: Unbound type Evalplus.t") *)
 	
 (* 入口 *)
 let f expr = eval expr empty id
+
+
+
+
+
 
 (* テスト *)
 (* test1: T or (not F and T) *)
