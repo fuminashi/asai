@@ -1,0 +1,29 @@
+3+(4*5)
+を考える
+
+コンパイラでは
+let a = 3 in
+let b = let c = 4 in
+      	let d = 5 in
+	c*d
+a+b
+
+コンテキストの一番外側に
+3+
+をするよ、というのを考えておいて、横においてしまって
+let a = 3 in
+let c = 4 in
+let d = 5 in
+let b = c*d in
+a+b
+ができるようになる
+
+prefix
+
+let rec prefix lst = 
+  match lst with [] -> shift (fun k -> [])
+    | a::rest -> a::(shift (fun k-> (k []) :: (reset (k (prefix rest))))) in
+(prefix [1;2;3;4;5;]);;
+
+[[1; []]; [[1; [2; []]]; [[1; [2; [3; []]]]; [[1; [2; [3; [4; []]]]]; [[1; [2; [3; [4; [5; []]]]]]; []]]]]]
+

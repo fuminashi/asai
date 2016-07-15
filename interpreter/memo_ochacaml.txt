@@ -1,0 +1,342 @@
+継続を捨てるやつ
+# let rec times lst = match lst with [] -> 1 | 0::r -> shift (fun _ -> 0) | f::r -> f * times r;;
+times : int list => int = <fun>
+# reset (fun () -> times [1; 2; 0; 4]);;
+- : int = 0
+
+f がそのまま継続になる
+# let f = reset (fun () -> 3 + shift (fun k -> k) - 1);;
+f : int => int = <fun>
+# f 10;;
+- : int = 12
+
+=> とは？
+week fill molphic
+二度と変換できないものになる(???)
+
+# #answer "all";;
+# f;;
+- : int / '_a -> int / '_a = <fun>
+
+実験
+
+# let a = (fun x -> x) (fun y -> y);;
+val a : '_a -> '_a = <fun>
+# a 3;;
+- : int = 3
+# a;;
+- : int -> int = <fun>
+# 
+
+αは、二度とint以外のものに使えなくなる
+ウィークフォルもルフィック？　弱い多相になっている
+値以外のものがきていると(ref)、型は通っているのにrun timeで型エラーが起きることになってしまう
+副作用のあるものを許してしまうと、型エラーが起こる。
+型システムがサウンドであるという
+
+さきのfでは、函数にしてあげると、 fun x -> ... となるので、函数内で閉じる
+
+# let f x  = reset (fun () -> 3 + shift (fun k -> k) - 1) x;;
+f : int -> int = <fun>
+#
+
+shift (fun k -> k) の練習
+reset (fun () -> 5 * ([] + 3*4))
+
+# let f x = reset (fun () -> 5 * (shift (fun k -> k) + 3*4)) x;;
+f : int -> int = <fun>
+# f 6;;
+- : int = 90
+reset (fun () -> (if (shift (fun k -> k)) then "hell" else "hi") ^ "world")
+reset (fun () -> fst (let x = (shift (fun k->k)) in (x,x)))
+reset (fun () -> string_length ("x" ^ string_of_int (shift (fun k -> k))))
+
+つづいてid
+
+let rec id lst = match lst with [] -> [] (*A*)
+| f :: r -> f :: id r
+
+(*A*)に来たときの継続を返してあげると、どうなるだろうか？
+reset (fun () -> id [1;2;3])
+
+ダメな例
+# let rec id lst = match lst with [] -> (shift (fun k -> k [])) 
+| f :: r -> f :: id r;;
+id : 'a list -> 'a list = <fun>
+# reset (fun () -> id [1; 2; 3]);;
+- : int list = [1; 2; 3]
+
+よい例
+# let rec id lst = match lst with [] -> (shift (fun k -> k))
+| f :: r -> f :: id r;;
+id : 'a list / 'b -> 'a list / ('a list -> 'b) = <fun>
+# reset (fun () -> id [1;2;3]) [];;
+- : int list = [1; 2; 3]
+
+# let append123 = reset (fun () -> id [1;2;3]);;
+append123 : int list / '_a -> int list / '_a = <fun>
+# append123 [4;5;6];;
+- : int list = [1; 2; 3; 4; 5; 6]
+# 
+
+ocaml は、 value restriction ではなくて、もうちょっと弱い
+ocamlを書いた人のひとりjack(名大)がそうしたはず
+
+ちなみに、やばくなる例
+
+let f = ref (fun x -> x)
+f: ('a -> 'a) ref
+
+# let f = ref (fun x -> x);;
+f : ('_a / '_b -> '_a / '_b) ref = ref <fun>
+# f := fun x -> x+1;;
+- : unit = ()
+# !f true;;
+Toplevel input:
+> !f true;;
+>    ^^^^
+This expression has type bool,
+but is used with type int.
+# 
+
+
+let f = fun x -> x のときは、
+f 5 ~> 5,
+f true ~> true
+となるはず
+
+refにしても、一見任意性は崩れない
+f := fun x -> x+1;; このときintを用いた
+型的には、!f trueであっても、うまくいきそう(f: ('a -> 'a) ref)
+
+型をgeneralにするものが、値になっているかどうかに注意すべき
+applが入ってるやつは、generalにしちゃいけない、とするのが一番簡単な対処法
+(ocamlは、applだけどgeneralにしてくれるケースがある)
+
+fun x -> x はこれ以上実行できない値
+
+実際ocamlでは
+# let f = ref (fun x -> x);;
+val f : ('_a -> '_a) ref = {contents = <fun>}
+となる
+('_a:いっぺん具体的な型になってしまったら、それ以上変えることはできません)
+
+shift/resetも、refくらい悪さをすることが知られている
+気をつけないと型のサウンドネスが壊れちゃう
+そのむかし、call/ccだけstandard mlに入っていた
+type soundness成り立ってると思って使われてたけど、そうでなかったと知られたとき結構な議論があった
+
+副作用なく、shift/resetだけがあるときに壊れるもの
+
+
+*co-routine
+
+止めるとき、待ちが終わったら残りの動作ができるようにする
+すなわち、継続をどこかに置いておけば残りの計算ができるようになる
+
+type tree_t = Empty | Node of tree_t * int * tree_t
+let rec walk tree = match tree with Empty -> ()
+  | Node (t1, n, t2) -> walk t1;
+    	      	     	print_int n;
+			walk t2;;
+
+ここで print_int を yield にしてみよう。
+木を歩いていて、
+yield: generater なんてよばれている。値を順番に生成してくれる
+yield: returns n and the way to get more integers ... 一度値をくれて、さらに木を歩いて次の値を取ってきてくれる
+
+nodeに次があるかないかを知っておきたい
+
+type result_t = Done (* no more Nodes *) | Next of int * (unit -> result_t)
+let yield n = shift (fun k -> Next (n, k))
+
+yieldのkはunitを待っていて、次walk t2に入る。
+captureした継続がNext(n,k)のkに入る
+はずなのですが、
+諸処の事情により、矢印形にはanswer typeが付随しているため、実際には次のように書かれたい
+answer typeとは、継続の型のこと(/の右側)
+
+type 'a result_t = Done (* no more Nodes *)
+                 | Next of int * (unit / 'a -> 'a result_t / 'a)
+
+let start tree = reset (fun () -> walk tree; Done) ;;
+let print_nodes tree = 
+  let rec loop r = match r with
+    Done -> ()
+  | Next (n,k) -> print_int n;
+    	       	  loop (k ()) in
+  loop (start tree);;
+
+print_nodes 向こう側で treewalk を始めている
+歩きにいくとノードにぶちあたり、yeildを始める
+継続とノードの値をNextというコンストラクタに入れてprint_nodesのloopに返す
+
+start tree の walk tree で実行されたshiftは、start内のresetまでとってくることになる
+co-routineが取れるためにshift/resetが使いたいという動機がある
+スレッドをパラレルに動かしたいときは、それぞれの継続をパラレルに取ってくる様子になったり。
+
+
+let add_nodes tree = 
+  let rec loop r s = match r with
+    Done -> s
+  | Next (n,k) -> loop (k ()) (s+n) in
+  loop (start tree) 0;;
+
+
+# let same_fringe t1 t2 = 
+    let rec loop r1 r2 = match (r1,r2) with
+       (Done, Done) -> true
+     | (Next(n1, k1), Next(n2, k2)) -> if n1 = n2 then loop (k1 ()) (k2 ()) else false
+     | _ -> false in loop (start t1) (start t2);;
+same_fringe : tree_t -> tree_t -> bool = <fun>
+# 
+
+if のところは、n1 = n2 && loop (k1 ()) (k2 ()) でも同じ意味
+
+
+soundness propety: 自分で作った定義(イコール)が、本当にイコールであること
+(正しいとジャッジしたものが、本当に正しく動作すること)
+
+
+*****
+7/15 つづき
+How to wrap continuations
+
+shift (fun k -> fun () -> k "hello")
+
+函数にすると、abortしているのと一緒
+reset の値として、 fun () -> k "hello" が、ごっそりcontextに返ってくる
+たとえば、
+
+reset (fun () ->
+shift (fun k -> fun () -> k "hello")
+^ " world") ()
+
+reset (fun () -> fun () -> k "hello") ()
+k = reset (fun () -> [] ^ " world")
+...resetの外側に()をくっつけている
+
+printfを書いてみよう
+
+reset (fun () -> "hello " ^ [...] ^ "!") "world" ;;
+イメージとしては、[...]に%sが入ってるような感じ
+
+reset (fun () ->
+"hello " ^
+shift (fun k -> fun x -> k x) ^ "!") "world" ;;
+
+shift (fun k -> k) でもよかったっぽい。
+
+reset (fun () -> "It's" ^ [...] ^ " o'clock!") 8
+
+reset (fun () ->
+"It's " ^
+shift (fun k -> fun x -> k (string_of_int x))
+^ " o'clock!") 8
+
+/*reset (fun () -> 
+shift (fun k -> fun x -> fun y ->
+"It's " ^ (y x) ^ " o'clock!")) 8 string_of_int*/
+
+answer typeが変わっている。
+shiftのおかげで、resetの中身の型を変化させてしまっている。
+reset (fun () -> "It's" ^ [...] ^ " o'clock!") : string type
+上のものでは、string -> string に変身している。
+
+# let percent f = shift (fun k -> fun x -> k (f x));;
+percent : ('a => 'b) => 'b = <fun>
+# reset (fun () ->
+"It's " ^ (percent string_of_int)
+^ " o'clock!") 8;;
+- : string = "It's 8 o'clock!"
+# reset (fun () ->
+"It's " ^ (percent string_of_int)
+^ " o'clock!");;
+- : int => string = <fun>
+# reset (fun () ->
+"It's " ^ (percent (fun x -> x))
+^ " o'clock!");;
+- : string => string = <fun>
+#   
+
+二重やじるしは、answer typeが変わっていることを示す。
+
+# #answer "all";;
+# percent ;;
+- : ('a / 'b -> 'c / 'd) / 'e -> 'c / ('a / 'b -> 'e / 'd) = <fun>
+# 
+
+(今まで見えていた型/answer type) という風に読む。
+
+answer type を 'e から 'a / 'b -> 'e / 'd に変える型
+(contextの型がどう変わるかまで、percentという人は知っているのです)
+
+直近をどうこうするのではなく、resetが囲んでいる外側(contextの外側)に影響を及ぼす
+
+a -> c が継続にわたる(すなわちb)
+継続が渡す型と、最終的な型は変わっても構わない(abortされたりするため)
+
+# reset (fun () -> "a" ^ percent string_of_int ^ percent string_of_char) ;;
+- : char / '_a -> (int / '_b -> string / '_b) / '_a = <fun> 
+##answer "none";;
+# reset (fun () -> "a" ^ percent string_of_int ^ percent string_of_char) ;;
+- : char => int => string = <fun>
+# 
+
+ocamlは式を右から実行する(これはcaml lightだけど)
+なので、順番は逆順になってしまう(int => char ではない)
+
+
+search
+
+
+how to duplicate continuation
+
+let either a b =
+ shift (fun k -> k a; k b) ;;
+
+a か b かが返ってくる
+
+reset (fun () ->
+  let x = either 0 1 in
+  print_int x; print_newline ());;
+
+非決定的なプログラムが書ける
+cf. 充足可能性問題
+3sat...np complete
+(pvq)^(pvnq)^(npvq) これは2sat
+
+reset (fun () ->
+  let p = either true false in
+  let q = either true false in
+  if (p || q) && (p || q) && (p || q) 
+  then (print_string (string_of_bool p);
+       print_string (string_of_bool q);
+       print_newline ())) ;;
+
+ピタゴラスの定理を満たす 1 <= x,y,z <= 5 となるような
+整数の組(x,y,z)を出力するようなsearch函数を書こう。
+       
+let choice l =
+  let rec loop k l = match l with [] -> () | f :: r -> k f; loop k r in
+  shift (fun k -> loop k l);;
+
+let search () =
+  let x = choice [1; 2; 3; 4; 5] in
+  let y = choice [1; 2; 3; 4; 5] in
+  let z = choice [1; 2; 3; 4; 5] in
+  if x * x + y * y = z * z
+  then (print_int x; print_string " ";
+        print_int y; print_string " ";
+	print_int z; print_newline ()) ;;
+
+reset (fun () -> search ()) ;;
+
+他の言語でshift/resetしたかったら、
+Scheme
+Haskell
+Scala
+OCaml
+にライブラリがあります。
+
+□

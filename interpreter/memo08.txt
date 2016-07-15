@@ -25,4 +25,7 @@ if a*a + b*b = c*c then print_endline(a,b,c);
 (back track するときは、うまくいかなかったときの話を書かなくちゃならない)
 金子さんの作ったライブラリのモジュールは、深さ/幅優先探索ができる
 
-
+prompt は、ocaml でいう #
+# 1+2;;
+# 1+control;;
+control は、prompt まで取って来ている
