@@ -1,0 +1,159 @@
+(*α型の計算、値のようだけどそれに付随して色々なことが起こるもの(副作用)*)
+(* return,unit .. 副作用がない、pureなもの *)
+(* bind .. let 文の拡張, αを貰ってきたらβ型のモナドになる *)
+
+let a = e1 in e2
+
+とかくのではなく、
+
+bind e1 (fun a -> e2)
+
+と表記する
+e1の値はaに入っている
+
+return と　bind を色々に変化すると、統一的な副作用を示すことが出来る
+let return( x: 'a) : 'a monad_t = x
+ここでは、何もしないモナドを書いている(identitic monad)..モナドはないのと同じ
+identity monadにおいては、bindはlet文と一緒
+
+sum1をモナディックに書く
+
+let v1 = sum1 left in ...
+
+bind (sum1 left) (fun v1 -> ...(fun v2 -> return (v1 + n + v2)))
+
+CPS変換に似ているが、実行順が非常に効いてくる
+
+run .. monadのlapper, monadic な計算を走らせるもの
+テストでは、
+let test11 = run (fun () -> sum1 tree1) = 15
+monadは計算を待っている状態、runに実行の対象を任せますというもの
+
+エラーがある場合
+
+type 'a monad_t = Error of string | Success of 'a
+let return (x:'a) : 'a monad_t = Success x
+let bind (x:'a monad_t) (f:'a ->'b monad_t) : 'b monad_t =
+  match x with
+    Error s -> Error s
+  | Success (v) -> f v
+let run (..) = 
+    match thunk () with
+      Error s -> failwith "error"
+    | Success v -> v
+
+これがエラーモナドと呼ばれるもの
+エラーが起きなければ普通の計算が出来る
+正常に進んでいる間はSuccessだが、エラーが起こることもあるよというのが付け加わっている
+returnは、値がうまくいっているケース
+bindでなにが起こるかというと、
+a型の値が来るけどエラーだったらそのまま、Successならfに渡せるねとなる
+
+monadicに書いたsum1は、じつはエラーモナドでもそのまま動く
+まだエラー処理の部分はないけど。
+
+そこら中にoptionを書いていると大変だからtry withを入れようねえとなるけど、
+monadicに書いたプログラムは、裏でoption型を回せるから
+try withを書かなくても良くなるのです(もちろんその分おそくなるけれど)
+
+runはpowerful
+もしかしたらerrorで値がないのかもしれないのに、a型が取り出せる
+failwith という本当のエラーを出すという、強すぎることが行われている
+monadicに書くと、pureな部分とerrorを切り分けられる
+errorを起こすeffectを付け加えてあげる
+let error s = Error s
+let sum2 lst = ...
+    bind (sum2 l) (fun v1 ->
+    if n < 0 then error "negative"
+    else if n = ..
+    else
+      bind (sum2 r) (fun v2 -> return (v1 + n + v2)))
+
+
+bindをただのletだと思ってみると
+普通のdirect styleの式を書いているようになる(monadicなもののいいところ)
+
+let test12 = try...with...
+
+続いて、状態モナド(stateは、refのこと。書き換え可能なcellのこと)
+type state_t = int lst
+type 'a monad_t = state_t -> 'a * state_t
+let return x = fun state -> (x, state)
+新しい状態がペアとなって返ってくる
+let bind x f =
+    fun state -> 
+      let (v, state') = x state in
+      (* 現在の状態を渡してあげることで、計算が始まり、新しい値と状態が返る *)
+      f v state' (* 新しい値と状態を渡すことで、残りの計算を行う *)
+      
+let run thunk =
+    fun state ->
+      let (v, state') = thunk () [](*state:初期状態*) in
+      v
+thunkにunit渡してあげればmonadになるが、プラスして状態が必要となる
+このままsum1を実行すると、テストも通るし、基本的には殆ど同じことが行われている
+sum3でやっていた状態を取ってきては渡す、というのがbindにすべて含まれている
+裏にint lstのstateがずっと付いて回っている状態
+
+sum3にするにはどうすればいいか。
+状態にものをつっこむこと、取り出すことが必要
+ふつうはsetとget(refの中に突っ込む、読み出す)だけど,ここではsaveとappeared
+let save x : unit monad_t = fun lst -> ((), x::lst)
+状態が新たに書き変わる
+let appeard x : bool monad_t = fun lst -> lst -> (List.mem x lst , lst)
+lstの中に出現しているかどうかをbooleanで返す
+let rec sum3 tree = match tree with
+Empty -> return 0
+|Node (l, n, r) ->
+bind (sum3 l) (fun v1 ->
+  bind (appeared n) (fun b ->
+     if b then
+       bind (sum3 r) (fun v2 -> return(v1+v2))
+     else
+       bind (save n) (fun () ->
+       bind (sum3 r) (fun v2 ->
+       return (v1+n+v2)))))
+
+モナディックなところはすべてbindで書いてやらなくちゃいけない
+左側を歩いている間に、裏で回ってるcellに蓄積されていく
+appearedをすると、今まで見たかどうかを知ることが出来る
+saveは、cellの中に副作用を使って書き込んでるイメージ(state:=i::!state)
+こうしてsum3は副作用を扱うことなくpureに書けていることになる
+
+最後にリストモナド
+モナドはaリスト
+現在の値の候補は複数ある、という意味
+type 'a monad_t = 'a list
+
+returnでは、値一つからなるようなリストを返してあげる(現在の値の候補は一つしかない)
+bindでは、今持っている全ての値に関してfを実行するが、その値が複数返ってくるかもしれない
+List.concatで、リストのリストをリストにしてあげる(複数の可能性が返ってくる可能性があるため)
+
+run1では、値がなければ値がない
+複数あれば、最初の一つ目を適当に返す
+
+例によってsum1もそのまま動くはず
+
+either: ２つ貰ったら'a monadでどっちかにする
+
+let tree3' = 
+  bind (either 3 4) (fun n1 ->
+  bind (either 4 6) (fun n2 ->
+  sum4 (Node (Node (Node (Empty, 1, Empty), n1, Node (Empty, 0, Empty)), -1,
+  Node (Node (Empty, 2, Empty), n2, Node (Empty, 3, Empty))))))
+
+shift/resetと似たようなことをやっているねえ、と感じるかもしれない
+shift/resetのanswer typeが変わらない継続モナドというものを作れたりする
+(変わるものはちょっとややこしい)
+
+lambda13
+モナドを全部モジュールにしてあげて、
+いろんなモナドを挿げ替えてプログラミングできるようにしましょうね
+と授業していた
+最後にparser monadの話(yaccみたいなものを扱うmonadもできるよ)
+
+tokenの列が流れてきたときどうparseするか？
+完全にfunctionalに、点検的にparseできる(monadic parsing in haskell)
+
+
+

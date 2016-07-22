@@ -1,0 +1,15 @@
+symply typed
+
+λt.λx:t.x
+型を渡すことができる
+system f
+
+型上の函数を入れる
+'a list
+f omega
+
+caliculus of construction
+
+
+meta carcular interpleter 
+
