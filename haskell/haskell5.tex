@@ -1,0 +1,744 @@
+\documentclass[dvipdfmx,cjk,xcolor=dvipsnames,envcountsect,notheorems,12pt]{beamer}
+% * 16:9 のスライドを作るときは、aspectratio=169 を documentclass のオプションに追加する
+% * 印刷用の配布資料を作るときは handout を documentclass のオプションに追加する
+%   （overlay が全て一つのスライドに出力される）
+
+\usepackage{pxjahyper}% しおりの文字化け対策 (なくても良い)
+\usepackage{amsmath,amssymb,amsfonts,amsthm,ascmac,cases,bm,pifont}
+\usepackage{graphicx}
+\usepackage{url}
+
+% スライドのテーマ
+\usetheme{sumiilab}
+% ベースになる色を指定できる
+%\usecolortheme[named=Magenta]{structure}
+% 数式の文字が細くて見難い時は serif の代わりに bold にしましょう
+%\mathversion{bold}
+
+%% ===============================================
+%% スライドの表紙および PDF に表示される情報
+%% ===============================================
+
+%% 発表会の名前とか（省略可）
+\session{Haskellゼミ}
+%% スライドのタイトル
+\title{プログラミング Haskell}
+%% 必要ならば、サブタイトルも
+\subtitle{第5章 リスト内包表記}
+%% 発表者のお名前
+\author{Fumiri USAMI}
+%% 発表者の所属（[] 内は短い名前）
+\institute[お茶大　小口研]{理学部　情報科学科\\小口研究室}% 学部生
+%\institute[東北大学　住井・松田研]{大学院情報科学研究科　情報基礎科学専攻\\住井・松田研究室}% 院生
+%% 発表する日
+\date{\today}
+
+%% ===============================================
+%% 自動挿入される目次ページの設定（削除しても可）
+%% ===============================================
+
+%% section の先頭に自動挿入される目次ページ（削除すると、表示されなくなる）
+\AtBeginSection[]{
+\begin{frame}
+  \frametitle{アウトライン}
+  \tableofcontents[sectionstyle=show/shaded,subsectionstyle=show/show/hide]
+\end{frame}}
+%% subsection の先頭に自動挿入される目次ページ（削除すると、表示されなくなる）
+\AtBeginSubsection[]{
+\begin{frame}
+  \frametitle{アウトライン}
+  \tableofcontents[sectionstyle=show/shaded,subsectionstyle=show/shaded/hide]
+\end{frame}}
+
+%% 現在の section 以外を非表示にする場合は以下のようにする
+
+%% \AtBeginSection[]{
+%% \begin{frame}
+%%   \frametitle{アウトライン}
+%%   \tableofcontents[sectionstyle=show/hide,subsectionstyle=show/show/hide]
+%% \end{frame}}
+%% \AtBeginSubsection[]{
+%% \begin{frame}
+%%   \frametitle{アウトライン}
+%%   \tableofcontents[sectionstyle=show/hide,subsectionstyle=show/shaded/hide]
+%% \end{frame}}
+
+%% ===============================================
+%% 定理環境の設定
+%% ===============================================
+
+\setbeamertemplate{theorems}[numbered]% 定理環境に番号を付ける
+\theoremstyle{definition}
+\newtheorem{definition}{定義}
+\newtheorem{axiom}{公理}
+\newtheorem{theorem}{定理}
+\newtheorem{lemma}{補題}
+\newtheorem{corollary}{系}
+\newtheorem{proposition}{命題}
+
+%% ===============================================
+%% ソースコードの設定
+%% ===============================================
+
+\usepackage{listings,jlisting}
+%\usepackage[scale=0.9]{DejaVuSansMono}
+
+\definecolor{DarkGreen}{rgb}{0,0.5,0}
+% プログラミング言語と表示するフォント等の設定
+\lstset{
+  %language={[Objective]Caml},% プログラミング言語
+  language={Haskell},% プログラミング言語
+  basicstyle={\ttfamily\small},% ソースコードのテキストのスタイル
+  keywordstyle={\bfseries},% 予約語等のキーワードのスタイル
+  commentstyle={},% コメントのスタイル
+  stringstyle={},% 文字列のスタイル
+  frame=trlb,% ソースコードの枠線の設定 (none だと非表示)
+  numbers=none,% 行番号の表示 (left だと左に表示)
+  numberstyle={},% 行番号のスタイル
+  xleftmargin=5pt,% 左余白
+  xrightmargin=5pt,% 右余白
+  keepspaces=true,% 空白を表示する
+  mathescape,% $ で囲った部分を数式として表示する ($ がソースコード中で使えなくなるので注意)
+  % 手動強調表示の設定
+  moredelim=[is][\itshape]{@/}{/@},
+  moredelim=[is][\color{red}]{@r\{}{\}@},
+  moredelim=[is][\color{blue}]{@b\{}{\}@},
+  moredelim=[is][\color{DarkGreen}]{@g\{}{\}@},
+}
+
+%% ===============================================
+%% 本文
+%% ===============================================
+\begin{document}
+\frame[plain]{\titlepage}% タイトルページ
+
+\section*{アウトライン}
+
+% 目次を表示させる（section を表示し、subsection は隠す）
+\begin{frame}
+  \frametitle{アウトライン}
+  \tableofcontents[sectionstyle=show,subsectionstyle=hide]
+\end{frame}
+
+\section{生成器}
+
+%\subsection{フォント}
+
+% * \begin{frame} と \end{frame} で囲った部分にスライドの内容を書く
+% * \frametitle{...} にスライドのタイトルを書く
+%\begin{frame}
+%  \frametitle{フォント}
+%  {\scriptsize こんにちは、世界。}\\
+%  {\footnotesize こんにちは、世界。}\\
+%  {\small こんにちは、世界。}\\
+%  こんにちは、世界。\\% {\normalsize こんにちは、世界。}
+%  {\large こんにちは、世界。}\\
+%  {\Large こんにちは、世界。}\\
+%  {\LARGE こんにちは、世界。}\\
+%  {\Huge こんにちは、世界。}
+%  \vfill% 縦方向によく伸びる空白（適当に間隔を開けたい時に便利）
+%  \structure{こんにちは、世界。}\\% 強調表示1
+%  \alert{こんにちは、世界。}% 強調表示2
+%\end{frame}
+
+%\begin{frame}[fragile]
+%\frametitle{よく見る数学の記法をそのまま使える！}
+%  \begin{exampleblock}{例) 1 から 5 までの平方数の集合}
+%    \begin{equation*}
+%    \{ x^2 \mid x \in \{ 1 ... 5 \} \} = \{1, 4, 9, 16, 25\}
+%    \end{equation*}
+%      \vfill
+%  \end{exampleblock}
+%        \vfill
+%  そのまま Haskell で書いてみましょう
+%        \vfill
+%  \begin{lstlisting}[language=Haskell]
+%input: ??
+%output: ??
+%\end{lstlisting}
+%      \vfill
+%\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{よく見る数学の記法をそのまま使える！}
+  \begin{exampleblock}{例) 1 から 5 までの平方数の集合}
+    \begin{equation*}
+    \{ x^2 \mid x \in \{ 1 ... 5 \} \} = \{1, 4, 9, 16, 25\}
+    \end{equation*}
+      \vfill
+  \end{exampleblock}
+        \vfill
+  そのまま Haskell で書いてみましょう
+        \vfill
+  \begin{exampleblock}{例) 1 から 5 までの平方数の集合}
+\begin{lstlisting}[frame=none]
+> [x^2 | x <- [1..5]] 
+[1, 4, 9, 16, 25]
+\end{lstlisting}
+\vfill
+  \end{exampleblock}
+      \vfill
+  \verb 「x ← [1..5]」
+  を \alert{生成器(generator)}という %糖衣構文！シュガーシンタックス
+  \\ つまり \alert{∈}＝\alert{←} みたいなもの
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{生成器いろいろ}
+\begin{itemize}
+\item カンマで区切れば複数の generator を列挙できる
+\item generator の順番を入れ替えると、要素の順番が変わる
+\item 後ろの方が入れ子が深い
+\item 後ろの generator は前方の generator の使う変数を \\ 利用できる
+\end{itemize}
+\begin{exampleblock}{例) [1,2,3]の要素と[4,5]の要素からなる組の集合}
+\begin{lstlisting}[frame=none]　
+> [(x,y) | x <- [1..5], y <- [4,5]] 
+[(1,4),(1,5),(2,4),(2,5),(3,4),(3,5),(4,4),
+(4,5),(5,4),(5,5)]
+
+> [(x,y) | y <- [4,5], x <- [1..5]] 
+[(1,4),(2,4),(3,4),(4,4),(5,4),(1,5),(2,5),
+(3,5),(4,5),(5,5)]
+\end{lstlisting}
+\vfill
+\end{exampleblock}
+\vfill
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{生成器いろいろ}
+%後ろの generator は前方の generator の使う変数を利用できる %遅延評価のいいとこ？
+  \begin{exampleblock}{例) [1..3]の要素から重複のない組の順列}
+\begin{lstlisting}[frame=none]
+> [(x,y) | x <- [1..3], y <- [x..3]] 
+[(1,1),(1,2),(1,3),(2,2),(2,3),(3,3)]
+\end{lstlisting}
+\end{exampleblock}
+\begin{block}{ライブラリ関数 concat} %リストのリストを取り、要素であるリストを連結する
+\begin{lstlisting}[frame=none]
+concat    :: [[a]] -> [a]
+concat xss = [x | xs <- xss, x <- xs]
+\end{lstlisting}
+\end{block}
+\begin{exampleblock}{concat 使用例}
+\begin{lstlisting}[frame=none]
+> concat [[x^2 | x <- [1..5]], [1..5]]
+[1,4,9,16,25,1,2,3,4,5]
+\end{lstlisting}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{ワイルドカードで捨てちゃおう}%要らない要素を捨てるにはワイルドカード_が便利
+\begin{exampleblock}{組のリストから組の先頭のリストを作る関数 firsts}
+\begin{lstlisting}[frame=none]
+firsts   :: [(a, b)] -> [a]
+firsts ps = [x | (x, _) <- ps]
+\end{lstlisting}
+\end{exampleblock}
+\begin{exampleblock}{リストの長さを計算する関数 length}
+\begin{lstlisting}[frame=none]
+length   :: [a] -> Int
+length xs = sum [1 | _ <- xs]
+\end{lstlisting}
+\end{exampleblock}
+ちなみに OCaml だと
+\begin{lstlisting}[language={[Objective]Caml}, frame=none]
+let firsts lst = List.map fst lst
+let length lst = List.fold_left 
+                   (fun n _ -> n+1) 0 lst
+\end{lstlisting}
+\end{frame}
+
+
+%\subsection{箇条書き}
+
+%\begin{frame}
+%  \frametitle{箇条書き}
+%  番号なし箇条書き：
+%  \begin{itemize}
+%  \item 項目1
+%  \item 項目2
+%  \item 項目3
+%  \end{itemize}
+%  番号つき箇条書き：
+%  \begin{enumerate}
+%  \item 項目1
+%  \item 項目2
+%  \item 項目3
+%  \end{enumerate}
+%  
+%
+%    \frametitle{ブロックの使用例}
+%  \begin{block}{ブロックのタイトル}
+%    ブロックの内容。
+%  \end{block}
+%  \vfill
+%  \begin{exampleblock}{ブロックのタイトル}
+%    exampleblock は例のためのブロックです。
+%  \end{exampleblock}
+%  \vfill
+%  \begin{alertblock}{ブロックのタイトル}
+%    alertblock は強調のためのブロックです。
+%    alert のブロック版だと思えばいいでしょう。
+%  \end{alertblock}
+%\end{frame}
+
+\section{ガード}
+
+%\subsection{ブロック}
+
+\begin{frame}[fragile]
+\frametitle{ガードとは}
+\begin{exampleblock}{例) ある自然数 n の約数の集合}
+    \begin{equation*}
+    \{ x \mid x \in \{ 1 ... n \} ~ \land ~ n \equiv 0 ~ (mod ~ x) \}
+    \end{equation*}
+    \vfill
+\end{exampleblock}
+\begin{exampleblock}{約数のリストを作る関数 factors}
+\begin{lstlisting}[frame=none]
+factors  :: Int -> [Int]
+factors n = [x | x <- [1..n], n `mod` x == 0]
+\end{lstlisting}
+\end{exampleblock}
+生成された値を間引くための論理式を\alert{ガード(guard)}という
+\\ {\scriptsize ~ ... 条件を満たす場合にしか先の処理に進ませてくれない衛兵さん}
+\vfill 上の場合、ガードは 「\alert{ \ttfamily {n `mod` x == 0}} \color{black}{」の部分}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{factors を使って、素数判定関数を考えよう}
+素数の定義: 1より大きな整数で、約数が1と自分自身のみ
+    \begin{equation*}
+    \{ x \in \mathbb{Z} \mid x > 1 ~ \land ~ x \mbox{の約数} = \{ 1, x \} \}
+    \end{equation*}
+    これを Haskell で書くと
+\begin{lstlisting}
+prime  :: Int -> Bool
+prime n = factors n == [1, n]
+\end{lstlisting}
+使用例
+\begin{lstlisting}[escapechar=!]
+> prime 15
+ ! {\scriptsize -- 遅延評価なので、約数 3 が出てきた瞬間に False が返る} !
+False
+> prime 7
+True
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{}
+素数判定をする関数 prime を使って、 \\ 整数 n までの素数全てを生成する関数 primes を定義しよう
+\vfill
+整数 n までの素数の集合は次のように表せる:
+    \begin{equation*}
+    \{ x \in \mathbb{Z} \mid x \in \{2, ..., n\} ~ \land ~ x \mbox{は素数}\}
+    \end{equation*}
+    Haskell で書くと
+\begin{lstlisting}
+primes  :: Int -> Bool
+primes n = [x | x <- [2..n], prime x]
+\end{lstlisting}
+使用例
+\begin{lstlisting}
+> primes 40
+[2,3,5,7,11,13,17,19,23,29,31,37]
+\end{lstlisting}
+{\scriptsize cf. 12章「エラトステネスのふるい」}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{ガードを使って探索しよう}
+キーと値からなる組のリスト lst から、
+検索キー k と等しいキーを持つ組を全て探してきて値のリストを返す関数 find
+\vfill
+Haskell で書くと 
+\begin{lstlisting} 
+find        :: Eq a => a -> [(a, b)] -> [b]
+find k lst = [v | (k', v) <- lst, k == k']
+\end{lstlisting}
+% 「=>」は、型の抽象度を降りて具体的な型に移っているという意味
+% http://bitterharvest.hatenablog.com/entry/2014/12/27/152543
+OCaml の場合(一例)
+\begin{lstlisting}{language = [Objective]Caml}
+# let find k lst = List.map snd 
+    (List.filter (fun (k',v) -> k == k') lst)
+  in 
+  find 'b' 
+    [('a',1); ('b',2); ('c',3); ('b',4)];;
+- : int list = [2; 4]
+\end{lstlisting}
+\end{frame}
+
+\section{関数 zip}
+
+\begin{frame}[fragile]
+\frametitle{zip とは}
+\begin{block}{関数 zip}
+2つのリストを取り、対応する要素を組にして、1つのリストを作る
+\\ 2引数のうち、短い方のリストの長さになる
+\end{block}
+\begin{lstlisting}
+> :t zip
+zip :: [a] -> [b] -> [(a, b)]
+> zip ['a','b', 'c'] [1, 2, 3, 4]
+[('a',1),('b',2),('c',3)]
+\end{lstlisting}
+リスト内包表記と一緒に使うと便利
+\vfill
+ 例) リストを受け取り、隣り合う要素を組にしたリストを作る
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{}
+\begin{exampleblock}{隣り合う要素を組にしたリストを返す関数 pairs}
+\begin{lstlisting}[frame=none, escapechar=!]
+pairs   :: [a] -> [(a, a)]
+pairs xs = zip xs (tail xs)
+! \vfill !
+> pairs [1,2,3,4]
+[(1,2),(2,3),(3,4)]
+\end{lstlisting}
+\end{exampleblock} % tail: リストの先頭要素を取り去った、後ろのリストを返す
+\vfill
+pairs を利用すると、リストの整列を判定できる
+\\ ~ {\scriptsize ~※~  順序クラスに属する任意の型の要素のリスト}
+\vfill
+→ 隣接する要素が順番通りか調べればよい
+\vfill
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{}
+\begin{exampleblock}{リストの中が並んでいるか判定する関数 sorted}
+\begin{lstlisting}[frame=none, escapechar=!]
+sorted   :: Ord a => [a] -> Bool
+sorted xs = and [x <= y | (x,y) <- pairs xs]
+! \vfill !
+> sorted [1,2,3,4]
+True
+> sorted [1,3,2,4]
+False ! {\scriptsize -- 順番が違っていたらすぐ False を返す。ここでは(3,2)のとき} !
+\end{lstlisting}
+\vfill
+\end{exampleblock}
+\vfill
+ある値が、リストの何番目にあるかを知ることもできる
+\vfill
+例えば、[0,0,1,0,1] から 1 の位置を知りたいとき、
+\\ 3番目と5番目に1があるので、[3,5]が返ってくる
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{}
+やり方としては
+  \begin{enumerate}
+  \item zip で [0,0,1,0,1]と[0..4]をペアにする
+  \item ペアのリスト [(0,0), (0,1), .. , (1,4)] から、先頭要素が1であるペアの第二要素を取り出す
+  \end{enumerate}
+\begin{exampleblock}{ある値がリストのどの位置にあるか調べて、その位置すべてをリストとして返す関数 positions}
+\begin{lstlisting}[frame=none]
+positions     :: Eq a => a -> [a] -> [Int]
+positions x xs =
+  [i | (x', i) <- zip xs [0..n], x == x']
+  where n = length xs - 1
+\end{lstlisting}
+\begin{lstlisting}[frame=none]
+> positions 1 [0,0,1,0,1]
+[2,4]
+\end{lstlisting}
+\end{exampleblock}
+\end{frame}
+
+\section{文字列の内包表記}
+
+\begin{frame}[fragile]
+\frametitle{Haskellの文字列は文字のリスト}
+Haskell の文字列は単なる \structure {文字のリスト}
+%\\ String は [Char] のエイリアス
+\begin{lstlisting}
+> "abc" == ['a','b','c']
+True
+\end{lstlisting}
+リストを扱う多層関数は、文字列も扱える
+\begin{lstlisting}[escapechar=!]
+> "abcde" !! 2 ! {\scriptsize -- リストのインデックスが2の要素を返す}!
+'c'
+> take 3 "abcde" ! {\scriptsize -- リストの先頭から3番目までを返す}!
+"abc"
+> length "abcde" ! {\scriptsize -- リストの長さを返す}!
+5
+> zip "abc" [1..5] ! {\scriptsize -- 二つのリストをペアのリストにする}!
+[('a',1),('b',2),('c',3)]
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{文字列とリスト内包表記}
+\begin{exampleblock}{文字列のうち小文字の個数を数える関数 lowers}
+\begin{lstlisting}[frame=none, escapechar=!]
+lowers   :: String -> Int
+lowers xs = length [x | x <- xs, isLower x] 
+ ! {\scriptsize -- Char 型の小文字判定関数 isLower を使う時は import Data.Char すること}!
+> lowers "OCaml"
+3
+\end{lstlisting}
+\end{exampleblock}
+\begin{exampleblock}{特定の文字 x の個数を数える関数 count}
+\begin{lstlisting}[frame=none, escapechar=!]
+count     :: Char -> String -> Int
+count x xs = length [x' | x' <- xs, x == x']
+> count 'も' "すもももももももものうち"
+8
+\end{lstlisting}
+\end{exampleblock}
+\end{frame}
+
+\section{シーザー暗号}
+
+\begin{frame}[fragile]
+\frametitle{シーザー暗号とは}
+\begin{block}{シーザー暗号}
+平文の各文字を辞書順に3文字ずらして暗号文を作る方法
+\\ この方法を使用した Julius Caesar にちなむ
+\end{block}
+\vfill
+\begin{exampleblock}{シーザー暗号の例}
+\begin{itemize}
+\item PPAP → RRDR (3個ずらす)
+\item PenPineappleApplePen → VktVotkgvvrkGvvrkVkt (6個)
+\item PenPineappleApplePen → ApyAtyplaawpLaawpApy (11個)
+\end{itemize}
+\end{exampleblock}
+\vfill
+Haskellでシーザー暗号の実装を考えていく
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{シーザー暗号の実装}
+アルファベット小文字の暗号化を考える
+\vfill
+\begin{itemize}
+\item 文字を0〜25に変換する関数l2iと、逆関数i2lの定義
+\begin{lstlisting}[escapechar=!]
+l2i c = ord c - ord 'a'      -- let2int
+  ! {\scriptsize -- ord: asciiコードの番号を返す関数}!
+i2l n = chr (ord 'a' + n)  -- int2let
+  ! {\scriptsize -- chr: ordの逆。対応するChar型を返す}!
+\end{lstlisting}
+\item 小文字をシフト数だけずらす関数shift
+\\ {\scriptsize 文字を0〜25に変換したあと、nだけずらして26で割ったものをCharに戻す}
+\\ {\scriptsize シフト数nが負の場合にも対応}
+\begin{lstlisting}[escapechar=!]
+!{\footnotesize shift n c | isLower c = i2l ((l2i c + n) `mod` 26)}!
+!{\footnotesize ~ ~ ~ ~ ~ | otherwise = c}!
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{}
+文字列の内包表記でshiftを使えば、シーザー暗号が作れる
+\vfill
+\begin{itemize}
+\item 与えられたシフト数で文字列を暗号化する関数 encode
+\begin{lstlisting}[escapechar=!]
+encode n xs = [shift n x | x <- xs]
+\end{lstlisting}
+\item 使用例
+\begin{lstlisting}[escapechar=!]
+> encode 3 "pen pineapple apple pen"
+"shq slqhdssoh dssoh shq"
+> encode (-3) "shq slqhdssoh dssoh shq"
+"pen pineapple apple pen"
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{文字の出現頻度表}
+英語の文章では、使用頻度が特定の文字に偏っている
+\\ 一般にeの使用頻度が最高、qやzの使用頻度が最低
+\begin{lstlisting}[escapechar=!]
+!{\scriptsize -- fromIntegral は整数を浮動小数点数に変換する関数}!
+!{\scriptsize -- 百分率を計算する関数 percent}!
+percent n m = 
+  (fromIntegral n / fromIntegral m) * 100
+!{\scriptsize -- 任意の文字列に対して文字の出現頻度表を返す関数 freqs}!
+freqs xs =
+ [percent (count x xs) n | x <- ['a'..'z']] 
+ where n = lowers xs
+
+> freqs "eggs"
+!{\footnotesize [0.0,0.0,0.0,0.0,25.0,0.0,50.0,0.0,0.0,0.0,0.0,0.0,0.0,}!
+!{\footnotesize  0.0,0.0,0.0,0.0,0.0,25.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}!
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{暗号解読}
+暗号文から、元の平文に復号したい！
+\\ → 文字の出現頻度の偏りに着目
+\vfill
+\begin{lstlisting}
+table = [8,2,3,4,12,2,2,6,7,0.2,0.8,
+4,2.4,7.2,8,2,0.1,6,6,9,3,1,2,0.2,2,0.1]
+\end{lstlisting}
+\vfill
+\begin{block}{暗号文をいくつシフトさせれば復号できるか？}
+\begin{itemize}
+\item 暗号文に対する文字の出現頻度表を作る
+\item 出現頻度表を左に回転させながら、期待される文字の表に対するカイ二乗検定の値を計算する
+\item 算出した値のリストのうち、最小の値の位置をシフト数とする
+\end{itemize}
+\vfill
+{\scriptsize (カイ二乗検定: 一般に、実測値と理論値にどのくらい差があるのか知りたいときに使われる)}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{}
+\begin{block}{カイ二乗検定}
+{\footnotesize os:観測頻度のリスト, es:期待頻度のリスト, n:リストの長さ}
+\\{\footnotesize 値が小さければ小さいほど二つのリストは似ている}
+\begin{equation*}
+\chi^2 ={\displaystyle \sum_{i = 0}^{n-1}} \frac{(os_{i} - es_{i})^2}{es_{ij}}
+\end{equation*}
+\end{block}
+Haskellで書くと
+\begin{lstlisting}[escapechar=!]
+chisqr os es =
+  sum [((o-e)^2)/ e | (o,e) <- zip os es]
+\end{lstlisting}
+リストの要素をnだけ左に回転させる関数 rotate
+\begin{lstlisting}[escapechar=!]
+rotate n xs = drop n xs ++ take n xs
+!{\scriptsize -- drop n xs: xsのn番目までを捨てて残った後ろのリストを返す}!
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{}
+\begin{exampleblock}{暗号解読例}
+\begin{lstlisting}[escapechar=!,frame=none]
+!{\footnotesize table' = freqs "kdvnhoo lv ixq"}!
+!{\footnotesize > chisqr (rotate n table') table | n <- [0..25]]}!
+!{\scriptsize [1406.509788359788,639.314021164021,625.9487213403879,\alert{205.69960317460308},\\
+1446.4679012345678,4249.598412698412,633.5269841269841,1158.0805555555555,\\
+970.4152116402114,1013.4046296296294,487.05983245149906,1505.3027777777775,\\
+2283.6592592592588,1359.800132275132,1492.7641975308638,3027.569091710757,\\
+670.3160052910052,2846.9308641975304,1012.4401234567899,799.2842592592591,\\
+1262.5227954144618,852.8832451499115,2899.9787037037026,952.9163139329804,\\
+5320.200264550263,647.1678571428572]
+\vfill ~}!
+!{\footnotesize -- どうやら3番目が一番値が小さいので、3つシフトさせる}!
+!{\footnotesize > encode (-3) "kdvnhoo lv ixq" 
+\\ "haskell is fun"}!
+\end{lstlisting}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{}
+いままでの手順をまとめると
+\begin{lstlisting}[basicstyle={\ttfamily\scriptsize}]
+crack xs = encode (-factor) xs
+  where
+    factor = head (positions (minimum chitab) chitab)
+    chitab = [chisqr (rotate n table') table | n <- [0..25]]
+    table' = freqs xs
+\end{lstlisting}
+ただし、文字列が短かったり、文字の出現頻度が例外的だと解読できない
+\begin{lstlisting}[basicstyle={\ttfamily\scriptsize}]
+> crack (encode 3 "haskell")
+> crack (encode 5 "boxing wizards jump quickly")
+\end{lstlisting}
+\end{frame}
+
+
+%% ===============================================
+%% 予備スライド
+%% ===============================================
+
+%% 予備スライドは appendix 環境の中に書きましょう。
+\begin{appendix}
+
+
+
+%% 予備スライドの先頭に APPENDIX と書かれたページを挟む（お好みで消去しても良い）
+\frame[plain]{\centerline{\Huge\bfseries\color{structure}APPENDIX}}
+
+\section{答え合わせ}
+
+\begin{frame}[fragile]
+  \frametitle{第五章 答え合わせ}
+  
+\begin{lstlisting}[basicstyle={\ttfamily\scriptsize}]
+q1 = sum [x^2|x<-[1..100]] -- 338350
+
+-- q2
+replicate n x = [x | _ <- [1..n]]
+-- > replicate 0 0
+-- []
+-- > replicate 8 20
+-- [8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8]
+
+-- q3
+pyth n = [(x,y,z) |
+    x <- [1..n], y <- [1..n], z <- [1..n], x*x+y*y==z*z]
+-- 重複をさけるもの
+pyth' n = [(x,y,z) | 
+    x <- [1..n], y <- [x..n], z <- [y..n], x*x+y*y==z*z]
+-- > pyth' 20
+-- [(3,4,5),(5,12,13),(6,8,10),(8,15,17),(9,12,15),(12,16,20)]
+
+-- q4
+yakusu n = [x | x <- [1..n], n `mod` x == 0]
+perfects n = [x | x <- [1..n], x+x == sum (yakusu x)]
+-- > perfects 500
+-- [6,28,496]
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{第五章 答え合わせ}
+  
+\begin{lstlisting}[basicstyle={\ttfamily\scriptsize}]
+-- q5 
+lst1 = [(x,y) | x <- [1,2,3], y <- [4,5,6]]
+lst2 = concat [[(x,y)|y <- [4,5,6]] | x <- [1,2,3]]
+q5 = lst1 == lst2
+
+-- q6
+find k lst = [v | (k', v) <- lst, k == k']
+positions x xs = 
+    [n | n <- (find x (zip xs [1..(length xs)]))]
+
+-- q7
+scalarproduct xs ys = sum [x*y | (x,y) <- (zip xs ys)]
+
+-- q8
+l2i' x c = ord c - ord x      -- let2int
+i2l' x n = chr (ord x + n)  -- int2let
+shift' n c | isLower c = i2l' 'a' ((l2i' 'a' c + n) `mod` 26)
+           | isUpper c = i2l' 'A' ((l2i' 'A' c + n) `mod` 26)
+           | otherwise = c
+encode' n xs = [shift' n x | x <- xs]
+ppap = "PenPineappleApplePen"
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}
+
+\end{frame}
+
+
+\end{appendix}
+
+\end{document}
