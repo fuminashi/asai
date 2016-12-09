@@ -12,6 +12,10 @@ type token =
   | OR
   | NOT
   | EQUAL
+  | NOTEQUAL
+  | LESS
+  | LESSEQUAL
+  | GREATEREQUAL
   | GREATER
   | EOI
   | FUN
@@ -19,7 +23,20 @@ type token =
   | LET
   | REC
   | IN
+  | EXIT
+  | IF
+  | THEN
+  | ELSE
   | VARIABLE of (string)
+  | CONTROL
+  | CONS
+  | SCOLON
+  | LBRACKET
+  | RBRACKET
+  | MATCH
+  | WITH
+  | PIPE
+  | PROMPT
 
 val start :
   (Lexing.lexbuf  -> token) -> Lexing.lexbuf ->  Evalplus.expr_t 

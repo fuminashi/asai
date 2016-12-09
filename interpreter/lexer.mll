@@ -68,7 +68,7 @@ rule token = parse
     {THEN}
   | "else" | "ELSE"
     {ELSE}
-  | "control" | "CONTROL"
+  | "shift" | "SHIFT"
     {CONTROL}
   | "::"
     {CONS}
@@ -84,7 +84,7 @@ rule token = parse
     {WITH}
   | "|"
     {PIPE}
-  | "prompt"
+  | "reset" | "RESET"
     {PROMPT}
   | alpha+ (alpha | digit)*
     {VARIABLE(Lexing.lexeme lexbuf)}

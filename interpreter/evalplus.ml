@@ -165,7 +165,7 @@ let rec eval expr env cont =
 	 | VRecFun(f, v, body, env') ->
 	    let env'' = extend (extend env' v y) f x in
 	    eval body env'' cont
-	 | VCont(cont') -> cont' y
+	 | VCont(cont') -> cont (cont' y)
 	 | _ -> failwith ("Error: App")
        ))
   | Match(e, e1, v, vs, e2) -> 
